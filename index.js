@@ -30,22 +30,21 @@ const client = new MongoClient(uri, {
 });
 
 // my middlewares 
-const logger = async( req, res, next) =>{
+const logger = async (req, res, next) => {
     console.log('called:', req.host, req.originalUrl);
     next();
 };
-const verifyToken = async(req, res, next) =>{
-    const token = req.cookies?.token;
-    console.log('value of token in middleware', token)
-    if(!token){
-        return res.status(401).send({message: 'unauthorized'})
+const verifyToken = async (req, res, next) => {
+    const token = req?.cookies?.token;
+    // console.log('token in the middleware', token);
+    // no token available 
+    if (!token) {
+        return res.status(401).send({ message: 'unauthorized access' })
     }
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        if(err){
-            console.log(err);
-            return res.status(401).send({message: 'unauthorized'})
+        if (err) {
+            return res.status(401).send({ message: 'unauthorized access' })
         }
-        console.log('value in the token', decoded);
         req.user = decoded;
         next();
     })
@@ -54,25 +53,25 @@ const verifyToken = async(req, res, next) =>{
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
 
         const serviceCollection = client.db('car-doctor').collection('services');
         const bookingCollection = client.db('car-doctor').collection('bookings');
 
         // auth api
-        app.post('/jwt', logger, async(req, res) => {
+        app.post('/jwt', logger, async (req, res) => {
             const user = req.body;
             console.log(user);
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'});
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
             res.cookie('token', token, {
                 httpOnly: true,
                 secure: false,
-            }).send({success: true})
+            }).send({ success: true })
         })
         // logout user
-        app.post('/logout', async(req, res) =>{
+        app.post('/logout', async (req, res) => {
             const user = req.body;
-            res.clearCookie('token', {maxAge: 0}).send({success: true});
+            res.clearCookie('token', { maxAge: 0 }).send({ success: true });
         })
 
 
@@ -96,37 +95,37 @@ async function run() {
         });
 
         // booking
-        app.get('/bookings', logger, verifyToken, async(req, res) =>{
+        app.get('/bookings', logger, verifyToken, async (req, res) => {
             console.log('user in the valid token', req.user)
             // console.log('tok tok token', req.cookies.token);
-            if(req.query.email !== req.user.email){
-                return res.status(403).send({message: 'forbidden access'})
+            if (req.query.email !== req.user.email) {
+                return res.status(403).send({ message: 'forbidden access' })
             };
             let query = {};
-            if(req.query?.email) {
+            if (req.query?.email) {
                 query = { email: req.query.email }
             }
             const result = await bookingCollection.find(query).toArray();
             res.send(result)
         })
 
-        app.post('/bookings', async(req, res) =>{
+        app.post('/bookings', async (req, res) => {
             const booking = req.body;
             const result = await bookingCollection.insertOne(booking);
             res.send(result)
         });
 
-        app.delete('/bookings/:id', async(req, res) =>{
+        app.delete('/bookings/:id', async (req, res) => {
             const id = req.params.id;
-            const query = { _id: new ObjectId(id)};
+            const query = { _id: new ObjectId(id) };
             const result = await bookingCollection.deleteOne(query);
             res.send(result)
         });
 
-        app.patch('/bookings/:id', async(req, res) =>{
+        app.patch('/bookings/:id', async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
-            const updateBooking = req.body; 
+            const updateBooking = req.body;
             const updateDoc = {
                 $set: {
                     status: updateBooking.status
@@ -138,7 +137,7 @@ async function run() {
 
 
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
+        // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
